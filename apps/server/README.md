@@ -1,14 +1,15 @@
-# PiyonPay Server
+# `@piyonpay/server`
 
-NestJS + Socket.IO API for [PiyonPay](../README.md).
+NestJS + Socket.IO API for [PiyonPay](../../README.md).
 
-See the [root README](../README.md) for setup, environment variables, and API overview.
+See the [root README](../../README.md) and [CONTRIBUTING.md](../../CONTRIBUTING.md) for setup.
 
 ```sh
-docker compose up -d
-cp .env.example .env
+# from repo root
+docker compose up -d mongo
+cp apps/server/.env.example apps/server/.env
 pnpm install
-pnpm start:dev
+pnpm --filter @piyonpay/server start:dev
 ```
 
-Licensed under [MIT](../LICENSE).
+Licensed under [MIT](../../LICENSE).

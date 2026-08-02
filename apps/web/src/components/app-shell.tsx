@@ -164,13 +164,14 @@ export function AppShell({
                         {menuOpen && (
                           <>
                             <motion.div
-                              initial={
-                                reduceMotion
-                                  ? false
-                                  : { opacity: 0, x: 36 }
-                              }
+                              initial={reduceMotion ? false : { opacity: 0, x: 36 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.05, type: 'spring', stiffness: 320, damping: 26 }}
+                              transition={{
+                                delay: 0.05,
+                                type: 'spring',
+                                stiffness: 320,
+                                damping: 26,
+                              }}
                             >
                               <Button
                                 asChild
@@ -186,9 +187,7 @@ export function AppShell({
                             </motion.div>
                             {isBanker && onCloseGame && !roomClosed && (
                               <motion.div
-                                initial={
-                                  reduceMotion ? false : { opacity: 0, x: 36 }
-                                }
+                                initial={reduceMotion ? false : { opacity: 0, x: 36 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{
                                   delay: 0.1,
@@ -213,9 +212,7 @@ export function AppShell({
                             )}
                             {isBanker && onFinalizeRoom && roomClosed && (
                               <motion.div
-                                initial={
-                                  reduceMotion ? false : { opacity: 0, x: 36 }
-                                }
+                                initial={reduceMotion ? false : { opacity: 0, x: 36 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{
                                   delay: 0.1,
@@ -240,11 +237,7 @@ export function AppShell({
                             )}
                             {!isBanker && (
                               <motion.div
-                                initial={
-                                  reduceMotion
-                                    ? false
-                                    : { opacity: 0, x: 36 }
-                                }
+                                initial={reduceMotion ? false : { opacity: 0, x: 36 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{
                                   delay: 0.12,
@@ -311,7 +304,12 @@ export function AppShell({
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <Icon className={cn('size-5', active && 'drop-shadow-[0_0_8px_oklch(0.9_0.2_120/0.6)]')} />
+                  <Icon
+                    className={cn(
+                      'size-5',
+                      active && 'drop-shadow-[0_0_8px_oklch(0.9_0.2_120/0.6)]',
+                    )}
+                  />
                   {item.label}
                 </Link>
               )

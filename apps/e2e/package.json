@@ -1,15 +1,15 @@
 {
-  "name": "tests",
-  "version": "1.0.0",
+  "name": "@piyonpay/e2e",
+  "version": "0.1.0",
   "private": true,
   "description": "PiyonPay Playwright e2e tests",
   "scripts": {
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "build": "echo 'No build for e2e'"
   },
-  "packageManager": "pnpm@10.22.0",
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^26.1.2"

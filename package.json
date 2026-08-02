@@ -1,0 +1,28 @@
+{
+  "name": "piyonpay",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "author": "Sezer Esim",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:server": "turbo run dev --filter=@piyonpay/server",
+    "dev:web": "turbo run dev --filter=@piyonpay/web",
+    "build": "turbo run build",
+    "lint": "oxlint .",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "test": "turbo run test --filter=!@piyonpay/e2e",
+    "test:e2e": "turbo run test --filter=@piyonpay/e2e",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.61.0",
+    "oxlint": "^1.76.0",
+    "turbo": "^2.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.22.0"
+}

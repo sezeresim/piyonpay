@@ -25,9 +25,7 @@ function readApiErrorMessage(data: unknown, status: number): string {
     if (
       typeof body.error === 'string' &&
       body.error.trim() &&
-      !['Conflict', 'Bad Request', 'Forbidden', 'Not Found', 'Unauthorized'].includes(
-        body.error,
-      )
+      !['Conflict', 'Bad Request', 'Forbidden', 'Not Found', 'Unauthorized'].includes(body.error)
     ) {
       return body.error
     }

@@ -56,9 +56,7 @@ export function JoinRoomPage() {
       toast.success(t('join.success'))
       navigate(`/rooms/${state.room.code}`)
     } catch (error) {
-      toast.error(
-        error instanceof Error ? localizeApiError(error.message, t) : t('common.error'),
-      )
+      toast.error(error instanceof Error ? localizeApiError(error.message, t) : t('common.error'))
     } finally {
       setBusy(false)
     }
@@ -97,9 +95,7 @@ export function JoinRoomPage() {
                 autoComplete="one-time-code"
                 placeholder="••••"
                 value={pin}
-                onChange={(event) =>
-                  setPin(event.target.value.replace(/\D/g, '').slice(0, 4))
-                }
+                onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
                 required
               />
               <p className="mt-1.5 text-xs text-muted-foreground">{t('join.pinHint')}</p>

@@ -1,21 +1,12 @@
-export const AVATAR_IDS = [
-  'fox',
-  'owl',
-  'lion',
-  'panda',
-  'frog',
-  'unicorn',
-  'robot',
-  'alien',
-  'cat',
-  'dog',
-  'dragon',
-  'crown',
-] as const
+import {
+  AVATAR_IDS,
+  DEFAULT_AVATAR_ID,
+  isAvatarId,
+  sanitizeAvatarId,
+  type AvatarId,
+} from '@piyonpay/shared'
 
-export type AvatarId = (typeof AVATAR_IDS)[number]
-
-export const DEFAULT_AVATAR_ID: AvatarId = 'fox'
+export { AVATAR_IDS, DEFAULT_AVATAR_ID, isAvatarId, sanitizeAvatarId, type AvatarId }
 
 export type AvatarOption = {
   id: AvatarId
@@ -38,14 +29,6 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
   { id: 'dragon', emoji: '🐲', hue: 150 },
   { id: 'crown', emoji: '👑', hue: 90 },
 ]
-
-export function isAvatarId(value: unknown): value is AvatarId {
-  return typeof value === 'string' && (AVATAR_IDS as readonly string[]).includes(value)
-}
-
-export function sanitizeAvatarId(value: unknown, fallback: AvatarId = DEFAULT_AVATAR_ID): AvatarId {
-  return isAvatarId(value) ? value : fallback
-}
 
 export function getAvatarOption(id?: string | null): AvatarOption {
   const safe = sanitizeAvatarId(id)

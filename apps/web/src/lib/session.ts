@@ -1,8 +1,4 @@
-import {
-  DEFAULT_AVATAR_ID,
-  sanitizeAvatarId,
-  type AvatarId,
-} from '@/lib/avatars'
+import { DEFAULT_AVATAR_ID, sanitizeAvatarId, type AvatarId } from '@/lib/avatars'
 
 const PLAYER_KEY = 'piyonpay-player'
 const TOKEN_KEY = 'piyonpay-token'

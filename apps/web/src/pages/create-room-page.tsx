@@ -63,9 +63,7 @@ export function CreateRoomPage() {
       toast.success(t('create.success'))
       navigate(`/rooms/${state.room.code}`)
     } catch (error) {
-      toast.error(
-        error instanceof Error ? localizeApiError(error.message, t) : t('common.error'),
-      )
+      toast.error(error instanceof Error ? localizeApiError(error.message, t) : t('common.error'))
     } finally {
       setBusy(false)
     }
@@ -103,9 +101,7 @@ export function CreateRoomPage() {
                 autoComplete="one-time-code"
                 placeholder="••••"
                 value={pin}
-                onChange={(event) =>
-                  setPin(event.target.value.replace(/\D/g, '').slice(0, 4))
-                }
+                onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
                 required
               />
               <p className="mt-1.5 text-xs text-muted-foreground">{t('create.pinHint')}</p>

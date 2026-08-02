@@ -7,6 +7,11 @@ dist/
 dist-ssr/
 *.tsbuildinfo
 coverage/
+.turbo/
+playwright-report/
+test-results/
+apps/e2e/playwright-report/
+apps/e2e/test-results/
 
 # Environment
 .env

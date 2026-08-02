@@ -24,8 +24,9 @@ import type {
   RoomState,
   Transaction,
 } from './room.types.js'
-import { RoomsRepository } from './rooms.repository.js'
+import { getEnv } from '../config/env.js'
 import { MongoService } from '../mongo/mongo.service.js'
+import { RoomsRepository } from './rooms.repository.js'
 
 const MAX_PLAYERS = 10
 const HISTORY_LIMIT = 100
@@ -335,15 +336,19 @@ export class RoomsService {
       throw new ConflictException('Room must be closed first.')
     }
     await this.deleteRoom(room.code)
-    return { deleted: true, room: this.publicRoom(room), players: [], transfers: [], transactions: [] }
+    return {
+      deleted: true,
+      room: this.publicRoom(room),
+      players: [],
+      transfers: [],
+      transactions: [],
+    }
   }
 
   private async closeRoomInternal(room: Room): Promise<RoomState> {
-    const holdMinutes = Number(process.env.ROOM_ADMIN_HOLD_MINUTES ?? 15)
-    const safeMinutes =
-      Number.isFinite(holdMinutes) && holdMinutes > 0 ? holdMinutes : 15
+    const holdMinutes = getEnv().ROOM_ADMIN_HOLD_MINUTES
     room.closed = true
-    room.adminHoldUntil = new Date(Date.now() + safeMinutes * 60 * 1000).toISOString()
+    room.adminHoldUntil = new Date(Date.now() + holdMinutes * 60 * 1000).toISOString()
     room.players = room.players.filter((player) => player.isBanker)
     for (const player of room.players) {
       player.ready = false
@@ -577,12 +582,7 @@ export class RoomsService {
     return (text || fallback).slice(0, maxLength)
   }
 
-  private sanitizeNumber(
-    value: unknown,
-    fallback: number,
-    min: number,
-    max: number,
-  ): number {
+  private sanitizeNumber(value: unknown, fallback: number, min: number, max: number): number {
     const number = Number(value)
     if (!Number.isFinite(number)) return fallback
     return Math.min(max, Math.max(min, Math.round(number)))

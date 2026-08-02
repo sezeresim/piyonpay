@@ -1,10 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common'
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { MongoClient, type Db } from 'mongodb'
+import { getEnv } from '../config/env.js'
 
 @Injectable()
 export class MongoService implements OnModuleInit, OnModuleDestroy {
@@ -13,7 +9,7 @@ export class MongoService implements OnModuleInit, OnModuleDestroy {
   private db!: Db
 
   async onModuleInit() {
-    const uri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27018/piyonpay'
+    const uri = getEnv().MONGODB_URI
     this.client = new MongoClient(uri)
     await this.client.connect()
     this.db = this.client.db()

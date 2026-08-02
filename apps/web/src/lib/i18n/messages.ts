@@ -134,8 +134,7 @@ export const en = {
   'close.kicked': 'The host closed this game.',
   'close.kickedTitle': 'Game closed',
   'close.banner': 'Admin-only hold',
-  'close.adminOnlyHint':
-    'Everyone else is out. You can review balances here until the timer ends.',
+  'close.adminOnlyHint': 'Everyone else is out. You can review balances here until the timer ends.',
   'close.holdRemaining': 'Time left for you',
   'close.summary': 'Your cash {balance} · Vault {vault}',
   'close.finalize': 'Leave & delete room',
@@ -338,8 +337,7 @@ export const tr: { [K in keyof typeof en]: string } = {
   'close.kicked': 'Kurucu oyunu kapattı.',
   'close.kickedTitle': 'Oyun kapandı',
   'close.banner': 'Sadece admin',
-  'close.adminOnlyHint':
-    'Diğer herkes çıktı. Süre dolana kadar bakiyeleri burada görebilirsin.',
+  'close.adminOnlyHint': 'Diğer herkes çıktı. Süre dolana kadar bakiyeleri burada görebilirsin.',
   'close.holdRemaining': 'Sana kalan süre',
   'close.summary': 'Nakit {balance} · Kasa {vault}',
   'close.finalize': 'Çık ve odayı sil',

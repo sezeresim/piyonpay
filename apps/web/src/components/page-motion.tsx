@@ -7,13 +7,7 @@ const pageMotion = {
   exit: { opacity: 0, y: -12 },
 }
 
-export function PageMotion({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
+export function PageMotion({ children, className }: { children: ReactNode; className?: string }) {
   const reduceMotion = useReducedMotion()
   const motionProps = reduceMotion
     ? { initial: false, animate: { opacity: 1 }, exit: { opacity: 0 } }

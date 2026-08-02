@@ -126,9 +126,7 @@ export function SendMoneyButton({
         >
           <motion.span
             animate={
-              locked || reduceMotion
-                ? undefined
-                : { rotate: [0, -12, 10, 0], scale: [1, 1.12, 1] }
+              locked || reduceMotion ? undefined : { rotate: [0, -12, 10, 0], scale: [1, 1.12, 1] }
             }
             transition={{
               duration: 0.9,

@@ -1,16 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import {
-  ArrowLeftRight,
-  Coins,
-  History,
-  Landmark,
-  Minus,
-  Plus,
-  Users,
-  Wallet,
-} from 'lucide-react'
+import { ArrowLeftRight, Coins, History, Landmark, Minus, Plus, Users, Wallet } from 'lucide-react'
 import { Field } from '@/components/field'
 import { AvatarBubble, BankArt, MoneyStackArt } from '@/components/illustrations'
 import { PageMotion } from '@/components/page-motion'
@@ -59,11 +50,7 @@ type GameViewProps = {
 const QUICK_AMOUNTS = [50, 100, 500, 1000, 2000]
 
 function isBankTransaction(transaction: Transaction) {
-  return (
-    transaction.type === 'banker' ||
-    transaction.from === 'Bank' ||
-    transaction.to === 'Bank'
-  )
+  return transaction.type === 'banker' || transaction.from === 'Bank' || transaction.to === 'Bank'
 }
 
 function HistoryTransactionRow({
@@ -87,9 +74,7 @@ function HistoryTransactionRow({
             <span
               className={cn(
                 'grid size-10 shrink-0 place-items-center rounded-full',
-                toVault
-                  ? 'bg-amber-500/25 text-amber-200'
-                  : 'bg-primary/20 text-primary',
+                toVault ? 'bg-amber-500/25 text-amber-200' : 'bg-primary/20 text-primary',
               )}
             >
               <Landmark className="size-5" />
@@ -114,9 +99,7 @@ function HistoryTransactionRow({
             <p className="font-heading text-lg font-semibold text-amber-200">
               <MoneyAmount value={transaction.amount} iconClassName="text-amber-300" />
             </p>
-            <p className="text-xs text-muted-foreground">
-              {formatTime(transaction.createdAt)}
-            </p>
+            <p className="text-xs text-muted-foreground">{formatTime(transaction.createdAt)}</p>
           </div>
         </div>
         <div className="pointer-events-none absolute -right-3 -bottom-4 w-20 opacity-40">
@@ -141,9 +124,7 @@ function HistoryTransactionRow({
         <p className="font-semibold text-primary">
           <MoneyAmount value={transaction.amount} />
         </p>
-        <p className="text-xs text-muted-foreground">
-          {formatTime(transaction.createdAt)}
-        </p>
+        <p className="text-xs text-muted-foreground">{formatTime(transaction.createdAt)}</p>
       </div>
     </div>
   )
@@ -379,11 +360,7 @@ function TransferPanel({
 
       <SendMoneyButton
         label={
-          sendToBank
-            ? t('game.payToBank')
-            : payingEveryone
-              ? t('game.payToAll')
-              : t('game.payNow')
+          sendToBank ? t('game.payToBank') : payingEveryone ? t('game.payToAll') : t('game.payNow')
         }
         disabled={!recipientId || busy || (payingEveryone && otherPlayers.length === 0)}
         busy={busy}
@@ -495,7 +472,10 @@ export function GameView({
               {t('game.history', { count: transactions.length })}
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="gap-0 overflow-hidden rounded-t-3xl border-border/60 bg-card p-0">
+          <SheetContent
+            side="bottom"
+            className="gap-0 overflow-hidden rounded-t-3xl border-border/60 bg-card p-0"
+          >
             <SheetHeader className="shrink-0 border-b border-border/60 pr-12">
               <SheetTitle>{t('game.historyTitle')}</SheetTitle>
               <SheetDescription>{t('game.historyDesc')}</SheetDescription>
@@ -535,11 +515,7 @@ export function GameView({
                   </p>
                 )}
                 {filteredHistory.map((transaction) => (
-                  <HistoryTransactionRow
-                    key={transaction.id}
-                    transaction={transaction}
-                    t={t}
-                  />
+                  <HistoryTransactionRow key={transaction.id} transaction={transaction} t={t} />
                 ))}
               </div>
             </div>

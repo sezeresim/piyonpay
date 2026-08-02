@@ -12,7 +12,7 @@ import {
   getSavedRoomCode,
   saveSession,
 } from '@/lib/session'
-import type { Room, RoomState } from '@/types'
+import { SOCKET_EVENTS, type Room, type RoomState } from '@/types'
 
 function isGoneError(message: string) {
   return (
@@ -100,9 +100,7 @@ export function useRoomSession(roomCode: string) {
         toast.success(success)
         return state
       } catch (err) {
-        toast.error(
-          err instanceof Error ? localizeApiError(err.message, t) : t('common.error'),
-        )
+        toast.error(err instanceof Error ? localizeApiError(err.message, t) : t('common.error'))
         throw err
       } finally {
         setBusy(false)
@@ -134,14 +132,11 @@ export function useRoomSession(roomCode: string) {
 
     const sync = async () => {
       try {
-        const state = await api<RoomState>(
-          `/api/rooms/${code}?token=${encodeURIComponent(token)}`,
-        )
+        const state = await api<RoomState>(`/api/rooms/${code}?token=${encodeURIComponent(token)}`)
         if (!stopped) applyState(state)
       } catch (err) {
         if (stopped) return
-        const message =
-          err instanceof Error ? err.message : t('room.notFoundShort')
+        const message = err instanceof Error ? err.message : t('room.notFoundShort')
         setLoading(false)
         setError(localizeApiError(message, t))
         if (isGoneError(message)) {
@@ -158,12 +153,31 @@ export function useRoomSession(roomCode: string) {
       withCredentials: false,
     })
 
-    socket.on('connect', () => {
-      socket.emit('room:join', { code, token })
-    })
-    socket.on('room:updated', (state: RoomState) => {
+    const onRoomState = (state: RoomState) => {
       if (!stopped) applyState(state)
+    }
+
+    socket.on('connect', () => {
+      socket.emit(SOCKET_EVENTS.ROOM_JOIN, { code, token })
     })
+
+    // Snapshot + granular mutation events (all carry full public RoomState)
+    const stateEvents = [
+      SOCKET_EVENTS.ROOM_UPDATED,
+      SOCKET_EVENTS.PLAYER_JOINED,
+      SOCKET_EVENTS.PLAYER_LEFT,
+      SOCKET_EVENTS.PLAYER_READY,
+      SOCKET_EVENTS.GAME_STARTED,
+      SOCKET_EVENTS.TRANSFER_CREATED,
+      SOCKET_EVENTS.BANK_UPDATED,
+      SOCKET_EVENTS.ROOM_CLOSED,
+      SOCKET_EVENTS.ROOM_DELETED,
+    ] as const
+
+    for (const event of stateEvents) {
+      socket.on(event, onRoomState)
+    }
+
     socket.on('connect_error', () => {
       if (stopped) return
       const now = Date.now()

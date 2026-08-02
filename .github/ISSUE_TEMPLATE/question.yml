@@ -1,0 +1,18 @@
+name: Question
+description: Ask a question about using or contributing to PiyonPay
+title: '[Question]: '
+labels: ['question']
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Relevant setup details, docs you already checked, etc.
+      placeholder: I read the README and tried…

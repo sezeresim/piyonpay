@@ -30,15 +30,15 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm start:dev',
-      cwd: '../piyonpay-server',
+      command: 'pnpm --filter @piyonpay/server start:dev',
+      cwd: '../..',
       url: `${API_URL}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
     {
-      command: 'pnpm dev --host 127.0.0.1 --port 5173',
-      cwd: '../piyonpay-ui',
+      command: 'pnpm --filter @piyonpay/web dev -- --host 127.0.0.1 --port 5173',
+      cwd: '../..',
       url: UI_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

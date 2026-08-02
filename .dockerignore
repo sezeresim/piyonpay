@@ -1,0 +1,12 @@
+**/node_modules
+**/.turbo
+**/dist
+**/playwright-report
+**/test-results
+.git
+.env
+.env.*
+!.env.example
+apps/e2e
+*.md
+!packages/shared/README.md

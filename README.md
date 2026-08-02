@@ -11,68 +11,93 @@ PiyonPay is a small full-stack MVP: a NestJS + Socket.IO API with MongoDB persis
 - Lobby readiness; start when the banker approves and players are ready
 - Live balances and instant player-to-player / bank / “pay everyone” transfers
 - Banker can issue or remove money from the vault
-- Transaction history and realtime `room:updated` sync over Socket.IO
+- Transaction history and realtime sync over Socket.IO (granular events + reconnect snapshot)
 - Per-device **seat tokens** (create/join secrets) for mutating actions
 - Leave (players), close + admin-hold, and finalize (banker)
 - Rooms persist in MongoDB and expire after inactivity (sliding TTL, default 24h)
 
+## Architecture
+
+```text
+┌──────────┐   HTTP / Socket.IO    ┌─────────────────┐
+│  Players │ ───────────────────► │  NestJS Server  │
+│ (React)  │ ◄─────────────────── │   + Socket.IO   │
+└──────────┘   room + player +    └────────┬────────┘
+               transfer events             │
+                                           ▼
+                                    ┌─────────────┐
+                                    │   MongoDB   │
+                                    └─────────────┘
+```
+
+Shared TypeScript contracts live in `packages/shared` (`Room`, `Player`, DTOs, `SOCKET_EVENTS`).
+
 ## Stack
 
-| Layer | Tech |
-|-------|------|
-| UI | React 19, Vite, Tailwind CSS, Radix / shadcn, Socket.IO client |
-| API | NestJS, Socket.IO, MongoDB |
-| Tooling | TypeScript, pnpm, Docker Compose (Mongo) |
+| Layer   | Tech                                                                  |
+| ------- | --------------------------------------------------------------------- |
+| UI      | React 19, Vite, Tailwind CSS, Radix / shadcn, Socket.IO client        |
+| API     | NestJS, Socket.IO, MongoDB                                            |
+| Shared  | `@piyonpay/shared` (types, DTOs, events)                              |
+| Tooling | TypeScript, pnpm workspaces, Turborepo, oxlint, oxfmt, Docker Compose |
 
 ## Repository layout
 
 ```text
 piyonpay/
-├── piyonpay-server/   # NestJS API + Socket.IO
-├── piyonpay-ui/       # React client
-├── LICENSE
+├── apps/
+│   ├── server/        # NestJS API + Socket.IO
+│   ├── web/           # React client
+│   └── e2e/           # Playwright tests
+├── packages/
+│   └── shared/        # Shared types & socket contracts
+├── docker-compose.yml
+├── CONTRIBUTING.md
 └── README.md
 ```
 
 ## Prerequisites
 
 - Node.js 20+ (recommended)
-- [pnpm](https://pnpm.io/)
-- Docker (for local MongoDB)
+- [pnpm](https://pnpm.io/) 10.22+
+- Docker (for MongoDB or full stack)
 
 ## Quick start
 
-### 1. MongoDB
+### Option A — Docker (full stack)
 
 ```sh
-cd piyonpay-server
-docker compose up -d
-cp .env.example .env
+docker compose up --build
 ```
 
-Compose exposes Mongo on host port **27018** (see `.env.example`).
+- UI: `http://localhost:5173`
+- API: `http://localhost:3000`
+- Mongo: host port `27018`
 
-### 2. API
+### Option B — Local development
+
+#### 1. Install & MongoDB
 
 ```sh
-cd piyonpay-server
 pnpm install
-pnpm start:dev
+docker compose up -d mongo
+cp apps/server/.env.example apps/server/.env
 ```
 
-API listens on `http://0.0.0.0:3000` by default.
+Compose exposes Mongo on host port **27018** (see `apps/server/.env.example`).
 
-Health check: `GET /api/health`
-
-### 3. UI
+#### 2. API + UI
 
 ```sh
-cd piyonpay-ui
-pnpm install
-pnpm dev --host 0.0.0.0
+pnpm --filter @piyonpay/shared build
+pnpm --filter @piyonpay/server start:dev
+pnpm --filter @piyonpay/web dev -- --host 0.0.0.0
 ```
 
-Open `http://localhost:5173`.
+Or from the root: `pnpm dev` (Turborepo).
+
+- API: `http://0.0.0.0:3000` — health: `GET /api/health`
+- UI: `http://localhost:5173`
 
 In development, Vite proxies `/api` to Nest. Socket.IO connects to the same hostname on port `3000` (so phones on LAN work without extra env).
 
@@ -80,32 +105,34 @@ In development, Vite proxies `/api` to Nest. Socket.IO connects to the same host
 
 1. Start API and UI as above (`--host 0.0.0.0` on the UI).
 2. On the other device, open `http://YOUR_LAN_IP:5173`.
-3. Optional overrides (see `piyonpay-ui/.env.example`):
+3. Optional overrides (see `apps/web/.env.example`):
 
 ```sh
 VITE_API_BASE=http://YOUR_LAN_IP:3000 \
 VITE_SOCKET_BASE=http://YOUR_LAN_IP:3000 \
-pnpm dev --host 0.0.0.0
+pnpm --filter @piyonpay/web dev -- --host 0.0.0.0
 ```
 
 ## Environment
 
-### Server (`piyonpay-server/.env`)
+Server env is validated with **Zod** at startup (invalid config fails fast).
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MONGODB_URI` | `mongodb://127.0.0.1:27018/piyonpay` | Mongo connection string |
-| `PORT` | `3000` | HTTP port |
-| `ROOM_TTL_HOURS` | `24` | Sliding TTL after last room activity |
-| `ROOM_ADMIN_HOLD_MINUTES` | `15` | After close, banker-only hold before auto-delete |
+### Server (`apps/server/.env`)
+
+| Variable                  | Default                              | Description                                      |
+| ------------------------- | ------------------------------------ | ------------------------------------------------ |
+| `MONGODB_URI`             | `mongodb://127.0.0.1:27018/piyonpay` | Mongo connection string                          |
+| `PORT`                    | `3000`                               | HTTP port                                        |
+| `ROOM_TTL_HOURS`          | `24`                                 | Sliding TTL after last room activity             |
+| `ROOM_ADMIN_HOLD_MINUTES` | `15`                                 | After close, banker-only hold before auto-delete |
 
 Copy from `.env.example`. Do not commit real `.env` files.
 
-### UI (optional — `piyonpay-ui/.env`)
+### UI (optional — `apps/web/.env`)
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_API_BASE` | Absolute API origin when not using the Vite proxy |
+| Variable           | Description                                                    |
+| ------------------ | -------------------------------------------------------------- |
+| `VITE_API_BASE`    | Absolute API origin when not using the Vite proxy              |
 | `VITE_SOCKET_BASE` | Absolute Socket.IO origin (defaults to `hostname:3000` in dev) |
 
 ## Auth model
@@ -117,49 +144,55 @@ Copy from `.env.example`. Do not commit real `.env` files.
 
 ## API overview
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `GET` | `/api/health` | Liveness + Mongo status |
-| `POST` | `/api/rooms` | Create room (returns `playerToken`) |
-| `GET` | `/api/rooms/:code?token=` | Room snapshot (member only) |
-| `POST` | `/api/rooms/:code/join` | Join (returns `playerToken`) |
-| `POST` | `/api/rooms/:code/ready` | Toggle ready (`{ token, ready }`) |
-| `POST` | `/api/rooms/:code/start` | Start game (`{ token }`) |
-| `POST` | `/api/rooms/:code/transfers` | Instant transfer (`{ token, toPlayerId, amount }`) |
-| `POST` | `/api/rooms/:code/banker-actions` | Issue / remove money |
-| `POST` | `/api/rooms/:code/leave` | Player leave |
-| `POST` | `/api/rooms/:code/close` | Banker close (kick others, admin hold) |
-| `POST` | `/api/rooms/:code/finalize` | Banker delete after close |
+| Method | Path                              | Purpose                                            |
+| ------ | --------------------------------- | -------------------------------------------------- |
+| `GET`  | `/api/health`                     | Liveness + Mongo status                            |
+| `POST` | `/api/rooms`                      | Create room (returns `playerToken`)                |
+| `GET`  | `/api/rooms/:code?token=`         | Room snapshot (member only)                        |
+| `POST` | `/api/rooms/:code/join`           | Join (returns `playerToken`)                       |
+| `POST` | `/api/rooms/:code/ready`          | Toggle ready (`{ token, ready }`)                  |
+| `POST` | `/api/rooms/:code/start`          | Start game (`{ token }`)                           |
+| `POST` | `/api/rooms/:code/transfers`      | Instant transfer (`{ token, toPlayerId, amount }`) |
+| `POST` | `/api/rooms/:code/banker-actions` | Issue / remove money                               |
+| `POST` | `/api/rooms/:code/leave`          | Player leave                                       |
+| `POST` | `/api/rooms/:code/close`          | Banker close (kick others, admin hold)             |
+| `POST` | `/api/rooms/:code/finalize`       | Banker delete after close                          |
 
 ### Realtime
 
-- Client emits `room:join` with `{ "code": "ABX92F", "token": "…" }`
-- Server emits `room:updated` to the room on player, balance, or history changes
+| Event              | Direction       | When                                            |
+| ------------------ | --------------- | ----------------------------------------------- |
+| `room:join`        | Client → Server | Subscribe after create/join (`{ code, token }`) |
+| `room:updated`     | Server → Client | Full snapshot on (re)connect                    |
+| `player:joined`    | Server → Client | Someone joined                                  |
+| `player:left`      | Server → Client | Someone left                                    |
+| `player:ready`     | Server → Client | Ready toggled                                   |
+| `game:started`     | Server → Client | Banker started the game                         |
+| `transfer:created` | Server → Client | Transfer completed                              |
+| `bank:updated`     | Server → Client | Banker issued/removed money                     |
+| `room:closed`      | Server → Client | Banker closed the room                          |
+| `room:deleted`     | Server → Client | Room finalized / deleted                        |
+
+Event names and payloads are defined in `@piyonpay/shared` (`SOCKET_EVENTS`).
 
 ## Scripts
 
-**Server**
-
 ```sh
-pnpm start:dev   # watch mode
+pnpm install
 pnpm build
-pnpm start
-pnpm lint
+pnpm lint              # oxlint (repo-wide)
+pnpm fmt               # oxfmt
+pnpm fmt:check
+pnpm test              # unit tests
+pnpm test:e2e          # Playwright
+pnpm --filter @piyonpay/server start:dev
+pnpm --filter @piyonpay/web dev
 ```
 
-**UI**
+## Contributing
 
-```sh
-pnpm dev
-pnpm build
-pnpm preview
-pnpm lint
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch strategy, commit conventions, and PR workflow.
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE) — Copyright © 2026 Sezer Esim.
-
-## Contributing
-
-Issues and pull requests are welcome. Keep changes focused; match existing TypeScript and UI patterns in each package.

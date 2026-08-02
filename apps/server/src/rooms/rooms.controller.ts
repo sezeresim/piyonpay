@@ -35,56 +35,57 @@ export class RoomsController {
   @Post('api/rooms/:code/join')
   async joinRoom(@Param('code') code: string, @Body() body: JoinRoomDto) {
     const state = await this.roomsService.joinRoom(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    this.roomsGateway.broadcastRoom(code, state, 'player:joined')
     return state
   }
 
   @Post('api/rooms/:code/ready')
   async setReady(@Param('code') code: string, @Body() body: ReadyDto) {
     const state = await this.roomsService.setReady(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    this.roomsGateway.broadcastRoom(code, state, 'player:ready')
     return state
   }
 
   @Post('api/rooms/:code/start')
   async startGame(@Param('code') code: string, @Body() body: AuthDto) {
     const state = await this.roomsService.startGame(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    this.roomsGateway.broadcastRoom(code, state, 'game:started')
     return state
   }
 
   @Post('api/rooms/:code/transfers')
   async createTransfer(@Param('code') code: string, @Body() body: CreateTransferDto) {
     const state = await this.roomsService.createTransfer(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    this.roomsGateway.broadcastRoom(code, state, 'transfer:created')
     return state
   }
 
   @Post('api/rooms/:code/banker-actions')
   async runBankerAction(@Param('code') code: string, @Body() body: BankerActionDto) {
     const state = await this.roomsService.runBankerAction(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    this.roomsGateway.broadcastRoom(code, state, 'bank:updated')
     return state
   }
 
   @Post('api/rooms/:code/leave')
   async leaveRoom(@Param('code') code: string, @Body() body: AuthDto) {
     const state = await this.roomsService.leaveRoom(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    const kind = state.deleted ? 'room:deleted' : 'player:left'
+    this.roomsGateway.broadcastRoom(code, state, kind)
     return state
   }
 
   @Post('api/rooms/:code/close')
   async closeRoom(@Param('code') code: string, @Body() body: AuthDto) {
     const state = await this.roomsService.closeRoom(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    this.roomsGateway.broadcastRoom(code, state, 'room:closed')
     return state
   }
 
   @Post('api/rooms/:code/finalize')
   async finalizeRoom(@Param('code') code: string, @Body() body: AuthDto) {
     const state = await this.roomsService.finalizeRoom(code, body)
-    this.roomsGateway.broadcastRoom(code, state)
+    this.roomsGateway.broadcastRoom(code, state, 'room:deleted')
     return state
   }
 }

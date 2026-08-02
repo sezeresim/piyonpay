@@ -5,14 +5,14 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets'
+import {
+  SOCKET_EVENTS,
+  type JoinRoomMessage,
+  type RoomBroadcastKind,
+  type RoomState,
+} from '@piyonpay/shared'
 import type { Server, Socket } from 'socket.io'
 import { RoomsService } from './rooms.service.js'
-import type { RoomState } from './room.types.js'
-
-type JoinRoomMessage = {
-  code?: string
-  token?: string
-}
 
 @WebSocketGateway({
   cors: {
@@ -25,21 +25,47 @@ export class RoomsGateway {
 
   constructor(private readonly roomsService: RoomsService) {}
 
-  @SubscribeMessage('room:join')
-  async joinRoom(
-    @MessageBody() body: JoinRoomMessage,
-    @ConnectedSocket() socket: Socket,
-  ) {
+  @SubscribeMessage(SOCKET_EVENTS.ROOM_JOIN)
+  async joinRoom(@MessageBody() body: JoinRoomMessage, @ConnectedSocket() socket: Socket) {
     const code = String(body.code ?? '').toUpperCase()
     const state = await this.roomsService.assertMember(code, body.token)
     void socket.join(code)
-    socket.emit('room:updated', this.stripSecrets(state))
+    // Full snapshot on (re)connect
+    socket.emit(SOCKET_EVENTS.ROOM_UPDATED, this.stripSecrets(state))
     return { ok: true }
   }
 
-  broadcastRoom(code: string, state: RoomState) {
+  /**
+   * Broadcast a granular mutation event (full public RoomState payload).
+   * Clients also receive `room:updated` on (re)connect via `room:join`.
+   */
+  broadcastRoom(code: string, state: RoomState, kind: RoomBroadcastKind = 'room:updated') {
     const roomCode = code.toUpperCase()
-    this.server.to(roomCode).emit('room:updated', this.stripSecrets(state))
+    const payload = this.stripSecrets(state)
+    this.server.to(roomCode).emit(this.eventForKind(kind), payload)
+  }
+
+  private eventForKind(kind: RoomBroadcastKind): string {
+    switch (kind) {
+      case 'player:joined':
+        return SOCKET_EVENTS.PLAYER_JOINED
+      case 'player:left':
+        return SOCKET_EVENTS.PLAYER_LEFT
+      case 'player:ready':
+        return SOCKET_EVENTS.PLAYER_READY
+      case 'game:started':
+        return SOCKET_EVENTS.GAME_STARTED
+      case 'transfer:created':
+        return SOCKET_EVENTS.TRANSFER_CREATED
+      case 'bank:updated':
+        return SOCKET_EVENTS.BANK_UPDATED
+      case 'room:closed':
+        return SOCKET_EVENTS.ROOM_CLOSED
+      case 'room:deleted':
+        return SOCKET_EVENTS.ROOM_DELETED
+      default:
+        return SOCKET_EVENTS.ROOM_UPDATED
+    }
   }
 
   private stripSecrets(state: RoomState): RoomState {

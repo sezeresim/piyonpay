@@ -279,11 +279,7 @@ export function RoomPage() {
                     amount,
                   }),
                 }),
-              toAll
-                ? t('game.allPaid')
-                : toBank
-                  ? t('game.bankPaid')
-                  : t('room.paymentSent'),
+              toAll ? t('game.allPaid') : toBank ? t('game.bankPaid') : t('room.paymentSent'),
             )
           }}
           onAdjustMoney={(amount, mode) => {

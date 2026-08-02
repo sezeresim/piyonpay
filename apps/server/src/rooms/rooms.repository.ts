@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import type { Collection } from 'mongodb'
+import { getEnv } from '../config/env.js'
 import { MongoService } from '../mongo/mongo.service.js'
 import type { Room } from './room.types.js'
 
@@ -33,9 +34,7 @@ export class RoomsRepository implements OnModuleInit {
   }
 
   private ttlMs(): number {
-    const hours = Number(process.env.ROOM_TTL_HOURS ?? 24)
-    const safeHours = Number.isFinite(hours) && hours > 0 ? hours : 24
-    return safeHours * 60 * 60 * 1000
+    return getEnv().ROOM_TTL_HOURS * 60 * 60 * 1000
   }
 
   private withTtl(room: Room, existing?: RoomDocument | null): RoomDocument {
