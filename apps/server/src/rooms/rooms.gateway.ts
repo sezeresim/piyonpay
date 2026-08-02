@@ -1,11 +1,11 @@
-import { UseGuards, UsePipes } from '@nestjs/common'
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler'
+import { SkipThrottle } from '@nestjs/throttler'
 import {
   ConnectedSocket,
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
+  WsException,
 } from '@nestjs/websockets'
 import {
   joinRoomMessageSchema,
@@ -15,9 +15,12 @@ import {
   type RoomState,
 } from '@piyonpay/shared'
 import type { Server, Socket } from 'socket.io'
+import { getEnv } from '../config/env.js'
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js'
 import { RoomsService } from './rooms.service.js'
+import { WsRateLimit } from './ws-rate-limit.js'
 
+@SkipThrottle()
 @WebSocketGateway({
   cors: {
     origin: true,
@@ -27,13 +30,20 @@ export class RoomsGateway {
   @WebSocketServer()
   private server!: Server
 
+  private readonly joinLimit = new WsRateLimit(getEnv().THROTTLE_LIMIT, getEnv().THROTTLE_TTL_MS)
+
   constructor(private readonly roomsService: RoomsService) {}
 
-  @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @UsePipes(new ZodValidationPipe(joinRoomMessageSchema, 'ws'))
   @SubscribeMessage(SOCKET_EVENTS.ROOM_JOIN)
-  async joinRoom(@MessageBody() body: JoinRoomMessage, @ConnectedSocket() socket: Socket) {
+  async joinRoom(
+    @MessageBody(new ZodValidationPipe(joinRoomMessageSchema, 'ws')) body: JoinRoomMessage,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    const key = socket.handshake?.address || socket.id
+    if (!this.joinLimit.allow(key)) {
+      throw new WsException('Too many join attempts. Please wait.')
+    }
+
     const code = String(body.code ?? '').toUpperCase()
     const state = await this.roomsService.assertMember(code, body.token)
     void socket.join(code)

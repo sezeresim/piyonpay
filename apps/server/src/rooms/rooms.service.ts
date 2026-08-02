@@ -366,7 +366,7 @@ export class RoomsService {
    */
   private async mutateRoomAtomic(
     code: string,
-    mutator: (room: Room, session: ClientSession) => Promise<RoomState>,
+    mutator: (room: Room, session: ClientSession | undefined) => Promise<RoomState>,
   ): Promise<RoomState> {
     return this.mongo.withTransaction(async (session) => {
       const base = await this.requireRoom(code)

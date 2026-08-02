@@ -72,7 +72,7 @@ docker compose up --build
 
 - UI: `http://localhost:5173`
 - API: `http://localhost:3000`
-- Mongo: host port `27018`
+- Mongo: host port `27019`
 
 ### Option B — Local development
 
@@ -84,7 +84,7 @@ docker compose up -d mongo
 cp apps/server/.env.example apps/server/.env
 ```
 
-Compose exposes Mongo on host port **27018** (see `apps/server/.env.example`).
+Compose exposes Mongo on host port **27019** (see `apps/server/.env.example`).
 
 #### 2. API + UI
 
@@ -121,7 +121,7 @@ Server env is validated with **Zod** at startup (invalid config fails fast).
 
 | Variable                  | Default                                                    | Description                                      |
 | ------------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
-| `MONGODB_URI`             | `mongodb://127.0.0.1:27018/piyonpay?directConnection=true` | Mongo (single-node replica set `rs0`)            |
+| `MONGODB_URI`             | `mongodb://127.0.0.1:27019/piyonpay?directConnection=true` | Mongo (single-node replica set `rs0`)            |
 | `PORT`                    | `3000`                                                     | HTTP port                                        |
 | `ROOM_TTL_HOURS`          | `24`                                                       | Sliding TTL after last room activity             |
 | `ROOM_ADMIN_HOLD_MINUTES` | `15`                                                       | After close, banker-only hold before auto-delete |

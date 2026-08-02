@@ -66,7 +66,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Start Mongo replica set
-        run: docker compose -f apps/server/docker-compose.yml up -d mongo
+        run: docker compose -f apps/server/docker-compose.yml up -d
 
       - name: Wait for Mongo replica set
         run: |
@@ -89,7 +89,7 @@ jobs:
       - name: Run Playwright tests
         working-directory: apps/e2e
         env:
-          MONGODB_URI: mongodb://127.0.0.1:27018/piyonpay?directConnection=true
+          MONGODB_URI: mongodb://127.0.0.1:27019/piyonpay?directConnection=true
         run: pnpm test
 
       - uses: actions/upload-artifact@v4

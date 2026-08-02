@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const UI_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173'
-const API_URL = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:3000'
+const UI_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173'
+const API_URL = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3000'
 
 export default defineConfig({
   testDir: './tests',
@@ -37,7 +37,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'pnpm --filter @piyonpay/web dev -- --host 127.0.0.1 --port 5173',
+      command: 'pnpm --filter @piyonpay/web dev -- --host localhost --port 5173',
       cwd: '../..',
       url: UI_URL,
       reuseExistingServer: !process.env.CI,

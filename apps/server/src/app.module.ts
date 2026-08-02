@@ -6,29 +6,42 @@ import { MongoModule } from './mongo/mongo.module.js'
 import { RoomsModule } from './rooms/rooms.module.js'
 
 const env = getEnv()
+const throttleEnabled = env.THROTTLE_LIMIT > 0
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: env.THROTTLE_TTL_MS,
-        limit: env.THROTTLE_LIMIT,
-      },
-      {
-        name: 'transfer',
-        ttl: env.THROTTLE_TTL_MS,
-        limit: env.THROTTLE_TRANSFER_LIMIT,
-      },
-    ]),
+    ThrottlerModule.forRoot(
+      throttleEnabled
+        ? [
+            {
+              name: 'default',
+              ttl: env.THROTTLE_TTL_MS,
+              limit: env.THROTTLE_LIMIT,
+            },
+            {
+              name: 'transfer',
+              ttl: env.THROTTLE_TTL_MS,
+              limit: Math.max(env.THROTTLE_TRANSFER_LIMIT, 1),
+            },
+          ]
+        : [
+            {
+              name: 'default',
+              ttl: env.THROTTLE_TTL_MS,
+              limit: 10_000,
+            },
+          ],
+    ),
     MongoModule,
     RoomsModule,
   ],
-  providers: [
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
-  ],
+  providers: throttleEnabled
+    ? [
+        {
+          provide: APP_GUARD,
+          useClass: ThrottlerGuard,
+        },
+      ]
+    : [],
 })
 export class AppModule {}
