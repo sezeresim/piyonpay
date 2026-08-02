@@ -11,6 +11,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: ['@piyonpay/shared'],
+  },
   server: {
     proxy: {
       '/api': 'http://127.0.0.1:3000',

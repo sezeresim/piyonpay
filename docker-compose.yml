@@ -1,15 +1,24 @@
 services:
   mongo:
     image: mongo:7
+    command: ['--replSet', 'rs0', '--bind_ip_all']
     ports:
       - '27018:27017'
     volumes:
       - piyonpay-mongo:/data/db
     healthcheck:
-      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      test:
+        [
+          'CMD',
+          'mongosh',
+          '--quiet',
+          '--eval',
+          "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok }",
+        ]
       interval: 5s
-      timeout: 5s
-      retries: 10
+      timeout: 10s
+      retries: 20
+      start_period: 10s
 
   server:
     build:
@@ -18,10 +27,13 @@ services:
     ports:
       - '3000:3000'
     environment:
-      MONGODB_URI: mongodb://mongo:27017/piyonpay
+      MONGODB_URI: mongodb://mongo:27017/piyonpay?replicaSet=rs0&directConnection=true
       PORT: '3000'
       ROOM_TTL_HOURS: '24'
       ROOM_ADMIN_HOLD_MINUTES: '15'
+      THROTTLE_TTL_MS: '60000'
+      THROTTLE_LIMIT: '60'
+      THROTTLE_TRANSFER_LIMIT: '20'
     depends_on:
       mongo:
         condition: service_healthy

@@ -24,6 +24,7 @@ import type {
   RoomState,
   Transaction,
 } from './room.types.js'
+import type { ClientSession } from 'mongodb'
 import { getEnv } from '../config/env.js'
 import { MongoService } from '../mongo/mongo.service.js'
 import { RoomsRepository } from './rooms.repository.js'
@@ -151,139 +152,141 @@ export class RoomsService {
   }
 
   async createTransfer(code: string, dto: CreateTransferDto): Promise<RoomState> {
-    const room = await this.requireRoom(code)
-    this.assertRoomOpen(room)
-    if (!room.started) {
-      throw new ConflictException('Game has not started.')
-    }
-
-    const from = this.requireAuth(room, dto.token)
-    const amount = this.sanitizeNumber(dto.amount, 0, 0, 100000)
-    const toBank = dto.toPlayerId === BANK_RECIPIENT_ID
-    const toAll = dto.toPlayerId === ALL_PLAYERS_RECIPIENT_ID
-
-    if (amount <= 0) {
-      throw new BadRequestException('Invalid transfer request.')
-    }
-
-    if (toAll) {
-      const recipients = room.players.filter((player) => player.id !== from.id)
-      if (recipients.length === 0) {
-        throw new ConflictException('No other players to pay.')
+    return this.mutateRoomAtomic(code, async (room, session) => {
+      this.assertRoomOpen(room)
+      if (!room.started) {
+        throw new ConflictException('Game has not started.')
       }
 
-      const total = amount * recipients.length
-      if (from.balance < total) {
+      const from = this.requireAuth(room, dto.token)
+      const amount = this.sanitizeNumber(dto.amount, 0, 0, 100000)
+      const toBank = dto.toPlayerId === BANK_RECIPIENT_ID
+      const toAll = dto.toPlayerId === ALL_PLAYERS_RECIPIENT_ID
+
+      if (amount <= 0) {
+        throw new BadRequestException('Invalid transfer request.')
+      }
+
+      if (toAll) {
+        const recipients = room.players.filter((player) => player.id !== from.id)
+        if (recipients.length === 0) {
+          throw new ConflictException('No other players to pay.')
+        }
+
+        const total = amount * recipients.length
+        if (from.balance < total) {
+          throw new ConflictException('Sender balance is too low.')
+        }
+
+        for (const to of recipients) {
+          from.balance -= amount
+          to.balance += amount
+          this.pushTransfer(room, {
+            fromPlayerId: from.id,
+            toPlayerId: to.id,
+            fromName: from.nickname,
+            toName: to.nickname,
+            amount,
+          })
+          this.addTransaction(room, {
+            type: 'transfer',
+            from: from.nickname,
+            to: to.nickname,
+            amount,
+            note: 'Paid every player (joker)',
+          })
+        }
+        await this.persist(room, { session })
+        return this.roomState(room)
+      }
+
+      if (from.balance < amount) {
         throw new ConflictException('Sender balance is too low.')
       }
 
-      for (const to of recipients) {
+      if (toBank) {
         from.balance -= amount
-        to.balance += amount
+        room.bankBalance += amount
         this.pushTransfer(room, {
           fromPlayerId: from.id,
-          toPlayerId: to.id,
+          toPlayerId: BANK_RECIPIENT_ID,
           fromName: from.nickname,
-          toName: to.nickname,
+          toName: 'Bank',
           amount,
         })
         this.addTransaction(room, {
           type: 'transfer',
           from: from.nickname,
-          to: to.nickname,
+          to: 'Bank',
           amount,
-          note: 'Paid every player (joker)',
+          note: 'Paid to bank vault',
         })
+        await this.persist(room, { session })
+        return this.roomState(room)
       }
-      await this.persist(room)
-      return this.roomState(room)
-    }
 
-    if (from.balance < amount) {
-      throw new ConflictException('Sender balance is too low.')
-    }
+      const to = this.requirePlayerById(room, dto.toPlayerId)
+      if (from.id === to.id) {
+        throw new BadRequestException('Invalid transfer request.')
+      }
 
-    if (toBank) {
       from.balance -= amount
-      room.bankBalance += amount
+      to.balance += amount
       this.pushTransfer(room, {
         fromPlayerId: from.id,
-        toPlayerId: BANK_RECIPIENT_ID,
+        toPlayerId: to.id,
         fromName: from.nickname,
-        toName: 'Bank',
+        toName: to.nickname,
         amount,
       })
       this.addTransaction(room, {
         type: 'transfer',
         from: from.nickname,
-        to: 'Bank',
+        to: to.nickname,
         amount,
-        note: 'Paid to bank vault',
+        note: from.isBanker ? 'Banker paid directly' : 'Player paid directly',
       })
-      await this.persist(room)
+      await this.persist(room, { session })
       return this.roomState(room)
-    }
-
-    const to = this.requirePlayerById(room, dto.toPlayerId)
-    if (from.id === to.id) {
-      throw new BadRequestException('Invalid transfer request.')
-    }
-
-    from.balance -= amount
-    to.balance += amount
-    this.pushTransfer(room, {
-      fromPlayerId: from.id,
-      toPlayerId: to.id,
-      fromName: from.nickname,
-      toName: to.nickname,
-      amount,
     })
-    this.addTransaction(room, {
-      type: 'transfer',
-      from: from.nickname,
-      to: to.nickname,
-      amount,
-      note: from.isBanker ? 'Banker paid directly' : 'Player paid directly',
-    })
-    await this.persist(room)
-    return this.roomState(room)
   }
 
   async runBankerAction(code: string, dto: BankerActionDto): Promise<RoomState> {
-    const room = await this.requireRoom(code)
-    this.assertRoomOpen(room)
-    this.requireBankerAuth(room, dto.token)
+    return this.mutateRoomAtomic(code, async (room, session) => {
+      this.assertRoomOpen(room)
+      this.requireBankerAuth(room, dto.token)
 
-    const target = this.requirePlayerById(room, dto.targetPlayerId)
-    const amount = this.sanitizeNumber(dto.amount, 0, 0, 100000)
-    const mode = dto.mode === 'remove' ? 'remove' : 'give'
-    if (amount <= 0) {
-      throw new BadRequestException('Invalid banker action.')
-    }
-    if (mode === 'give' && room.bankBalance < amount) {
-      throw new ConflictException('Bank vault balance is too low.')
-    }
-    if (mode === 'remove' && target.balance < amount) {
-      throw new ConflictException('Target balance is too low.')
-    }
+      const target = this.requirePlayerById(room, dto.targetPlayerId)
+      const amount = this.sanitizeNumber(dto.amount, 0, 0, 100000)
+      const mode = dto.mode === 'remove' ? 'remove' : 'give'
+      if (amount <= 0) {
+        throw new BadRequestException('Invalid banker action.')
+      }
+      if (mode === 'give' && room.bankBalance < amount) {
+        throw new ConflictException('Bank vault balance is too low.')
+      }
+      if (mode === 'remove' && target.balance < amount) {
+        throw new ConflictException('Target balance is too low.')
+      }
 
-    if (mode === 'give') {
-      room.bankBalance -= amount
-      target.balance += amount
-    } else {
-      target.balance -= amount
-      room.bankBalance += amount
-    }
+      if (mode === 'give') {
+        room.bankBalance -= amount
+        target.balance += amount
+      } else {
+        target.balance -= amount
+        room.bankBalance += amount
+      }
 
-    this.addTransaction(room, {
-      type: 'banker',
-      from: mode === 'give' ? 'Bank' : target.nickname,
-      to: mode === 'give' ? target.nickname : 'Bank',
-      amount,
-      note: mode === 'give' ? 'Paid from bank vault' : 'Returned to bank vault',
+      this.addTransaction(room, {
+        type: 'banker',
+        from: mode === 'give' ? 'Bank' : target.nickname,
+        to: mode === 'give' ? target.nickname : 'Bank',
+        amount,
+        note: mode === 'give' ? 'Paid from bank vault' : 'Returned to bank vault',
+      })
+      await this.persist(room, { session })
+      return this.roomState(room)
     })
-    await this.persist(room)
-    return this.roomState(room)
   }
 
   /** Socket / membership check — token must belong to a current seat. */
@@ -357,11 +360,33 @@ export class RoomsService {
     return this.roomState(room)
   }
 
-  private async persist(room: Room, options?: { create?: boolean }): Promise<void> {
+  /**
+   * Clone room, mutate inside a Mongo transaction, then swap cache on success.
+   * On failure the in-memory cache is left unchanged (rollback).
+   */
+  private async mutateRoomAtomic(
+    code: string,
+    mutator: (room: Room, session: ClientSession) => Promise<RoomState>,
+  ): Promise<RoomState> {
+    return this.mongo.withTransaction(async (session) => {
+      const base = await this.requireRoom(code)
+      const working = this.cloneRoom(base)
+      return mutator(working, session)
+    })
+  }
+
+  private cloneRoom(room: Room): Room {
+    return structuredClone(room)
+  }
+
+  private async persist(
+    room: Room,
+    options?: { create?: boolean; session?: ClientSession },
+  ): Promise<void> {
     this.trimHistory(room)
-    this.rooms.set(room.code, room)
     try {
       await this.roomsRepository.save(room, options)
+      this.rooms.set(room.code, room)
     } catch (error) {
       if (error instanceof Error && error.message === 'ROOM_EXPIRED') {
         this.rooms.delete(room.code)

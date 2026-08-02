@@ -1,3 +1,5 @@
+import { UseGuards, UsePipes } from '@nestjs/common'
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler'
 import {
   ConnectedSocket,
   MessageBody,
@@ -6,12 +8,14 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets'
 import {
+  joinRoomMessageSchema,
   SOCKET_EVENTS,
   type JoinRoomMessage,
   type RoomBroadcastKind,
   type RoomState,
 } from '@piyonpay/shared'
 import type { Server, Socket } from 'socket.io'
+import { ZodValidationPipe } from '../common/zod-validation.pipe.js'
 import { RoomsService } from './rooms.service.js'
 
 @WebSocketGateway({
@@ -25,6 +29,9 @@ export class RoomsGateway {
 
   constructor(private readonly roomsService: RoomsService) {}
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UsePipes(new ZodValidationPipe(joinRoomMessageSchema, 'ws'))
   @SubscribeMessage(SOCKET_EVENTS.ROOM_JOIN)
   async joinRoom(@MessageBody() body: JoinRoomMessage, @ConnectedSocket() socket: Socket) {
     const code = String(body.code ?? '').toUpperCase()

@@ -105,6 +105,9 @@ export const en = {
   'room.moneyIssued': 'Money issued.',
   'room.moneyRemoved': 'Money removed.',
   'room.socketLost': 'Realtime connection lost. Retrying...',
+  'room.reconnecting': 'Reconnecting…',
+  'room.reconnectingHint': 'Actions are paused until the live connection returns.',
+  'room.reconnected': 'Back online.',
   'room.notFoundShort': 'Room not found.',
 
   'lobby.title': 'Lobby',
@@ -308,6 +311,9 @@ export const tr: { [K in keyof typeof en]: string } = {
   'room.moneyIssued': 'Para verildi.',
   'room.moneyRemoved': 'Para alındı.',
   'room.socketLost': 'Canlı bağlantı koptu. Yeniden deneniyor...',
+  'room.reconnecting': 'Yeniden bağlanılıyor…',
+  'room.reconnectingHint': 'Canlı bağlantı gelene kadar işlemler duraklatıldı.',
+  'room.reconnected': 'Bağlantı yeniden kuruldu.',
   'room.notFoundShort': 'Oda bulunamadı.',
 
   'lobby.title': 'Lobi',

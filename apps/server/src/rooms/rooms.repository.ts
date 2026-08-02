@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import type { Collection } from 'mongodb'
+import type { ClientSession, Collection } from 'mongodb'
 import { getEnv } from '../config/env.js'
 import { MongoService } from '../mongo/mongo.service.js'
 import type { Room } from './room.types.js'
@@ -9,6 +9,11 @@ export type RoomDocument = Room & {
   updatedAt: Date
   /** Sliding TTL — Mongo deletes the doc when this date is reached */
   expiresAt: Date
+}
+
+export type SaveOptions = {
+  create?: boolean
+  session?: ClientSession
 }
 
 const COLLECTION = 'rooms'
@@ -47,12 +52,12 @@ export class RoomsRepository implements OnModuleInit {
     }
   }
 
-  async findByCode(code: string): Promise<Room | null> {
-    const doc = await this.collection.findOne({ code: code.toUpperCase() })
+  async findByCode(code: string, session?: ClientSession): Promise<Room | null> {
+    const doc = await this.collection.findOne({ code: code.toUpperCase() }, { session })
     if (!doc) return null
     // Treat expired docs as gone even if Mongo TTL sweeper has not run yet.
     if (doc.expiresAt && doc.expiresAt.getTime() <= Date.now()) {
-      await this.deleteByCode(code)
+      await this.deleteByCode(code, session)
       return null
     }
     return this.toRoom(doc)
@@ -63,24 +68,25 @@ export class RoomsRepository implements OnModuleInit {
     return room !== null
   }
 
-  async save(room: Room, options?: { create?: boolean }): Promise<void> {
+  async save(room: Room, options?: SaveOptions): Promise<void> {
+    const session = options?.session
     if (options?.create) {
-      await this.collection.insertOne(this.withTtl(room, null))
+      await this.collection.insertOne(this.withTtl(room, null), { session })
       return
     }
 
-    const existing = await this.collection.findOne({ code: room.code })
+    const existing = await this.collection.findOne({ code: room.code }, { session })
     if (!existing || (existing.expiresAt && existing.expiresAt.getTime() <= Date.now())) {
-      if (existing) await this.deleteByCode(room.code)
+      if (existing) await this.deleteByCode(room.code, session)
       // Never upsert — avoids resurrecting TTL-deleted rooms from a stale cache.
       throw new Error('ROOM_EXPIRED')
     }
     const doc = this.withTtl(room, existing)
-    await this.collection.replaceOne({ code: room.code }, doc)
+    await this.collection.replaceOne({ code: room.code }, doc, { session })
   }
 
-  async deleteByCode(code: string): Promise<void> {
-    await this.collection.deleteOne({ code: code.toUpperCase() })
+  async deleteByCode(code: string, session?: ClientSession): Promise<void> {
+    await this.collection.deleteOne({ code: code.toUpperCase() }, { session })
   }
 
   private toRoom(doc: RoomDocument): Room {

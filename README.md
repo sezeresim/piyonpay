@@ -119,12 +119,15 @@ Server env is validated with **Zod** at startup (invalid config fails fast).
 
 ### Server (`apps/server/.env`)
 
-| Variable                  | Default                              | Description                                      |
-| ------------------------- | ------------------------------------ | ------------------------------------------------ |
-| `MONGODB_URI`             | `mongodb://127.0.0.1:27018/piyonpay` | Mongo connection string                          |
-| `PORT`                    | `3000`                               | HTTP port                                        |
-| `ROOM_TTL_HOURS`          | `24`                                 | Sliding TTL after last room activity             |
-| `ROOM_ADMIN_HOLD_MINUTES` | `15`                                 | After close, banker-only hold before auto-delete |
+| Variable                  | Default                                                    | Description                                      |
+| ------------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
+| `MONGODB_URI`             | `mongodb://127.0.0.1:27018/piyonpay?directConnection=true` | Mongo (single-node replica set `rs0`)            |
+| `PORT`                    | `3000`                                                     | HTTP port                                        |
+| `ROOM_TTL_HOURS`          | `24`                                                       | Sliding TTL after last room activity             |
+| `ROOM_ADMIN_HOLD_MINUTES` | `15`                                                       | After close, banker-only hold before auto-delete |
+| `THROTTLE_TTL_MS`         | `60000`                                                    | Rate-limit window                                |
+| `THROTTLE_LIMIT`          | `60`                                                       | Default requests per window                      |
+| `THROTTLE_TRANSFER_LIMIT` | `20`                                                       | Transfer / banker-action limit                   |
 
 Copy from `.env.example`. Do not commit real `.env` files.
 

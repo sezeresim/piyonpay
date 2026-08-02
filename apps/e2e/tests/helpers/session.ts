@@ -1,10 +1,39 @@
-import type { BrowserContext, Page } from '@playwright/test'
+import type { Browser, BrowserContext, Page, Route } from '@playwright/test'
 import { expect } from '@playwright/test'
 
 /** Keep UI in English for stable selectors. */
 export async function prepareCleanContext(context: BrowserContext) {
   await context.addInitScript(() => {
     localStorage.setItem('piyonpay-locale', 'en')
+  })
+}
+
+/** Isolated browser context with a clean English seat session. */
+export async function newCleanPage(browser: Browser) {
+  const context = await browser.newContext()
+  await prepareCleanContext(context)
+  const page = await context.newPage()
+  await clearSeatSession(page)
+  return { context, page }
+}
+
+/** Stub REST API for UI-only specs (navigation / home / settings). */
+export async function mockApiRoutes(page: Page) {
+  await page.route('**/api/**', async (route: Route) => {
+    const url = route.request().url()
+    if (url.includes('/api/health')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, mongo: 'up' }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true }),
+    })
   })
 }
 

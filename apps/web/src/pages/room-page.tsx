@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/app-shell'
+import { ConnectionOverlay } from '@/components/connection-overlay'
 import { GameView } from '@/components/game-view'
 import { LobbyView } from '@/components/lobby-view'
 import { PageMotion } from '@/components/page-motion'
@@ -12,6 +13,7 @@ import { api } from '@/lib/api'
 import { formatMoneyValue } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import { clearSession } from '@/lib/session'
+import { useRoomStore } from '@/stores/room-store'
 import { BANK_RECIPIENT_ID, ALL_PLAYERS_RECIPIENT_ID, type RoomState } from '@/types'
 
 function holdRemainingLabel(adminHoldUntil: string | null, label: string) {
@@ -45,6 +47,7 @@ export function RoomPage() {
     setRecipientId,
     bankerTargetId,
     setBankerTargetId,
+    connectionStatus,
     submit,
   } = session
 
@@ -148,6 +151,7 @@ export function RoomPage() {
         isBanker
         roomClosed
       >
+        <ConnectionOverlay status={connectionStatus} />
         <PageMotion className="flex flex-1 flex-col gap-5">
           <div>
             <p className="text-sm font-medium text-amber-300">{t('close.banner')}</p>
@@ -241,6 +245,7 @@ export function RoomPage() {
       onCloseGame={currentPlayer.isBanker ? closeGame : undefined}
       isBanker={currentPlayer.isBanker}
     >
+      <ConnectionOverlay status={connectionStatus} />
       {!room.started ? (
         <LobbyView
           room={room}
@@ -266,7 +271,7 @@ export function RoomPage() {
           bankerTargetId={bankerTargetId}
           setBankerTargetId={setBankerTargetId}
           onRequestTransfer={(amount) => {
-            if (!recipientId) return
+            if (!recipientId || !currentPlayerId) return
             const toBank = recipientId === BANK_RECIPIENT_ID
             const toAll = recipientId === ALL_PLAYERS_RECIPIENT_ID
             void submit(
@@ -280,6 +285,14 @@ export function RoomPage() {
                   }),
                 }),
               toAll ? t('game.allPaid') : toBank ? t('game.bankPaid') : t('room.paymentSent'),
+              {
+                optimistic: () =>
+                  useRoomStore.getState().applyOptimisticTransfer({
+                    fromPlayerId: currentPlayerId,
+                    toPlayerId: recipientId,
+                    amount,
+                  }),
+              },
             )
           }}
           onAdjustMoney={(amount, mode) => {
@@ -296,6 +309,14 @@ export function RoomPage() {
                   }),
                 }),
               mode === 'give' ? t('room.moneyIssued') : t('room.moneyRemoved'),
+              {
+                optimistic: () =>
+                  useRoomStore.getState().applyOptimisticBankerAction({
+                    targetPlayerId: bankerTargetId,
+                    amount,
+                    mode,
+                  }),
+              },
             )
           }}
         />

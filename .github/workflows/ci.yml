@@ -49,16 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: lint-build-test
-    services:
-      mongo:
-        image: mongo:7
-        ports:
-          - 27018:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +65,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Start Mongo replica set
+        run: docker compose -f apps/server/docker-compose.yml up -d mongo
+
+      - name: Wait for Mongo replica set
+        run: |
+          for i in $(seq 1 40); do
+            if docker compose -f apps/server/docker-compose.yml exec -T mongo \
+              mongosh --quiet --eval 'quit(rs.status().ok === 1 ? 0 : 1)'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Mongo replica set did not become healthy in time' >&2
+          exit 1
+
       - name: Build shared
         run: pnpm --filter @piyonpay/shared build
 
@@ -84,7 +89,7 @@ jobs:
       - name: Run Playwright tests
         working-directory: apps/e2e
         env:
-          MONGODB_URI: mongodb://127.0.0.1:27018/piyonpay
+          MONGODB_URI: mongodb://127.0.0.1:27018/piyonpay?directConnection=true
         run: pnpm test
 
       - uses: actions/upload-artifact@v4

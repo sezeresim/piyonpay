@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { clearSeatSession, prepareCleanContext } from './helpers/session'
+import { clearSeatSession, mockApiRoutes, prepareCleanContext } from './helpers/session'
 
 test.beforeEach(async ({ context, page }) => {
   await prepareCleanContext(context)
+  await mockApiRoutes(page)
   await clearSeatSession(page)
 })
 

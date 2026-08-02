@@ -1,18 +1,5 @@
-import { test, expect, type Browser, type Page } from '@playwright/test'
-import {
-  clearSeatSession,
-  createRoomAsBanker,
-  joinRoomAsPlayer,
-  prepareCleanContext,
-} from './helpers/session'
-
-async function newCleanPage(browser: Browser) {
-  const context = await browser.newContext()
-  await prepareCleanContext(context)
-  const page = await context.newPage()
-  await clearSeatSession(page)
-  return { context, page }
-}
+import { test, expect, type Browser } from '@playwright/test'
+import { createRoomAsBanker, joinRoomAsPlayer, newCleanPage } from './helpers/session'
 
 async function startTwoPlayerGame(browser: Browser, pin = '2468') {
   const banker = await newCleanPage(browser)

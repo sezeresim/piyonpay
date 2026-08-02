@@ -4,6 +4,7 @@ import {
   createFormInputs,
   createRoomAsBanker,
   joinFormInputs,
+  newCleanPage,
   prepareCleanContext,
 } from './helpers/session'
 
@@ -57,26 +58,20 @@ test('home shows continue card after creating a room', async ({ page }) => {
 })
 
 test('wrong join PIN shows an error toast', async ({ browser }) => {
-  const bankerContext = await browser.newContext()
-  await prepareCleanContext(bankerContext)
-  const bankerPage = await bankerContext.newPage()
-  await clearSeatSession(bankerPage)
-  const code = await createRoomAsBanker(bankerPage, { pin: '1111' })
+  const banker = await newCleanPage(browser)
+  const code = await createRoomAsBanker(banker.page, { pin: '1111' })
 
-  const joinerContext = await browser.newContext()
-  await prepareCleanContext(joinerContext)
-  const joinerPage = await joinerContext.newPage()
-  await clearSeatSession(joinerPage)
-  await joinerPage.goto('/rooms/join')
-  const inputs = joinFormInputs(joinerPage)
+  const joiner = await newCleanPage(browser)
+  await joiner.page.goto('/rooms/join')
+  const inputs = joinFormInputs(joiner.page)
   await inputs.nickname.fill('Intruder')
   await inputs.code.fill(code)
   await inputs.pin.fill('0000')
-  await joinerPage.getByRole('button', { name: 'Join' }).click()
+  await joiner.page.getByRole('button', { name: 'Join' }).click()
 
-  await expect(joinerPage.getByText('Incorrect PIN.')).toBeVisible()
-  await expect(joinerPage).toHaveURL(/\/rooms\/join$/)
+  await expect(joiner.page.getByText('Incorrect PIN.')).toBeVisible()
+  await expect(joiner.page).toHaveURL(/\/rooms\/join$/)
 
-  await bankerContext.close()
-  await joinerContext.close()
+  await banker.context.close()
+  await joiner.context.close()
 })

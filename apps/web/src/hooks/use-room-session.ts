@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import { toast } from 'sonner'
+import { useShallow } from 'zustand/react/shallow'
 import { api, SOCKET_BASE } from '@/lib/api'
 import { localizeApiError } from '@/lib/api-error'
 import { useT } from '@/lib/i18n'
@@ -12,7 +13,8 @@ import {
   getSavedRoomCode,
   saveSession,
 } from '@/lib/session'
-import { SOCKET_EVENTS, type Room, type RoomState } from '@/types'
+import { useRoomStore } from '@/stores/room-store'
+import { SOCKET_EVENTS, type RoomState } from '@/types'
 
 function isGoneError(message: string) {
   return (
@@ -26,39 +28,55 @@ export function useRoomSession(roomCode: string) {
   const t = useT()
   const navigate = useNavigate()
   const code = roomCode.trim().toUpperCase()
-  const [room, setRoom] = useState<Room | null>(null)
-  const [players, setPlayers] = useState<RoomState['players']>([])
-  const [transfers, setTransfers] = useState<RoomState['transfers']>([])
-  const [transactions, setTransactions] = useState<RoomState['transactions']>([])
-  const [currentPlayerId] = useState(() => getSavedPlayerId())
-  const [playerToken] = useState(() => getSavedPlayerToken())
-  const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [recipientId, setRecipientId] = useState('')
-  const [bankerTargetId, setBankerTargetId] = useState('')
   const socketToastAt = useRef(0)
+  const wasReconnecting = useRef(false)
+
+  const {
+    room,
+    players,
+    transfers,
+    transactions,
+    currentPlayerId,
+    playerToken,
+    busy,
+    loading,
+    error,
+    recipientId,
+    bankerTargetId,
+    connectionStatus,
+    setRecipientId,
+    setBankerTargetId,
+  } = useRoomStore(
+    useShallow((state) => ({
+      room: state.room,
+      players: state.players,
+      transfers: state.transfers,
+      transactions: state.transactions,
+      currentPlayerId: state.currentPlayerId,
+      playerToken: state.playerToken,
+      busy: state.busy,
+      loading: state.loading,
+      error: state.error,
+      recipientId: state.recipientId,
+      bankerTargetId: state.bankerTargetId,
+      connectionStatus: state.connectionStatus,
+      setRecipientId: state.setRecipientId,
+      setBankerTargetId: state.setBankerTargetId,
+    })),
+  )
 
   const applyState = useCallback(
-    (state: RoomState, playerId = currentPlayerId) => {
+    (state: RoomState, playerId = useRoomStore.getState().currentPlayerId) => {
       if (state.deleted) {
         clearSession()
-        setRoom(null)
-        setPlayers([])
-        setLoading(false)
+        useRoomStore.getState().clearRoom()
         return
       }
 
-      setRoom(state.room)
-      setPlayers(state.players)
-      setTransfers(state.transfers)
-      setTransactions(state.transactions)
-      setError('')
-      setLoading(false)
+      useRoomStore.getState().applyServerState(state, playerId)
 
       const inRoom = Boolean(playerId && state.players.some((player) => player.id === playerId))
       const savedCode = getSavedRoomCode()
-      // Only refresh session when we are a member of this exact room.
       if (inRoom && (!savedCode || savedCode === state.room.code)) {
         saveSession(playerId, state.room.code)
       }
@@ -71,27 +89,29 @@ export function useRoomSession(roomCode: string) {
         clearSession()
         toast.message(t('close.kicked'))
         navigate('/', { replace: true })
-        return
       }
-
-      const playerIds = new Set(state.players.map((player) => player.id))
-      setBankerTargetId((current) =>
-        current && playerIds.has(current) ? current : state.players[0]?.id || '',
-      )
-      setRecipientId((current) => {
-        if (current && (playerIds.has(current) || current.startsWith('__'))) return current
-        return state.players.find((player) => player.id !== playerId)?.id ?? ''
-      })
     },
-    [currentPlayerId, navigate, t],
+    [navigate, t],
   )
 
   const submit = useCallback(
-    async (action: () => Promise<RoomState>, success: string) => {
-      setBusy(true)
+    async (
+      action: () => Promise<RoomState>,
+      success: string,
+      options?: { optimistic?: () => void },
+    ) => {
+      const store = useRoomStore.getState()
+      if (store.connectionStatus !== 'connected') {
+        toast.message(t('room.reconnecting'))
+        throw new Error(t('room.reconnecting'))
+      }
+
+      const snapshot = store.getSnapshot()
+      options?.optimistic?.()
+      store.setBusy(true)
       try {
         const state = await action()
-        applyState(state, currentPlayerId)
+        applyState(state, store.currentPlayerId)
         if (state.deleted) {
           toast.success(success)
           navigate('/', { replace: true })
@@ -100,45 +120,43 @@ export function useRoomSession(roomCode: string) {
         toast.success(success)
         return state
       } catch (err) {
+        useRoomStore.getState().restoreSnapshot(snapshot)
         toast.error(err instanceof Error ? localizeApiError(err.message, t) : t('common.error'))
         throw err
       } finally {
-        setBusy(false)
+        useRoomStore.getState().setBusy(false)
       }
     },
-    [applyState, currentPlayerId, navigate, t],
+    [applyState, navigate, t],
   )
 
   useEffect(() => {
     if (!code) return
 
     let stopped = false
-    setLoading(true)
+    const playerId = getSavedPlayerId()
     const token = getSavedPlayerToken()
+    useRoomStore.getState().resetForRoom(playerId, token)
 
     if (!token) {
-      setLoading(false)
-      setError(t('room.notInRoom', { code }))
+      useRoomStore.getState().setError(t('room.notInRoom', { code }))
       return
     }
 
-    // Wrong saved room — do not overwrite session with another code.
     const savedCode = getSavedRoomCode()
     if (savedCode && savedCode !== code) {
-      setLoading(false)
-      setError(t('room.notInRoom', { code }))
+      useRoomStore.getState().setError(t('room.notInRoom', { code }))
       return
     }
 
     const sync = async () => {
       try {
         const state = await api<RoomState>(`/api/rooms/${code}?token=${encodeURIComponent(token)}`)
-        if (!stopped) applyState(state)
+        if (!stopped) applyState(state, playerId)
       } catch (err) {
         if (stopped) return
         const message = err instanceof Error ? err.message : t('room.notFoundShort')
-        setLoading(false)
-        setError(localizeApiError(message, t))
+        useRoomStore.getState().setError(localizeApiError(message, t))
         if (isGoneError(message)) {
           clearSession()
         }
@@ -151,17 +169,38 @@ export function useRoomSession(roomCode: string) {
       path: '/socket.io',
       transports: ['polling', 'websocket'],
       withCredentials: false,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 800,
+      reconnectionDelayMax: 5000,
     })
 
     const onRoomState = (state: RoomState) => {
-      if (!stopped) applyState(state)
+      if (!stopped) applyState(state, playerId)
     }
 
     socket.on('connect', () => {
+      if (stopped) return
+      const store = useRoomStore.getState()
+      store.setConnectionStatus('connected')
+      if (wasReconnecting.current) {
+        toast.success(t('room.reconnected'))
+        wasReconnecting.current = false
+      }
       socket.emit(SOCKET_EVENTS.ROOM_JOIN, { code, token })
     })
 
-    // Snapshot + granular mutation events (all carry full public RoomState)
+    socket.on('disconnect', () => {
+      if (stopped) return
+      wasReconnecting.current = true
+      useRoomStore.getState().setConnectionStatus('reconnecting')
+    })
+
+    socket.on('reconnect_attempt', () => {
+      if (stopped) return
+      useRoomStore.getState().setConnectionStatus('reconnecting')
+    })
+
     const stateEvents = [
       SOCKET_EVENTS.ROOM_UPDATED,
       SOCKET_EVENTS.PLAYER_JOINED,
@@ -180,6 +219,7 @@ export function useRoomSession(roomCode: string) {
 
     socket.on('connect_error', () => {
       if (stopped) return
+      useRoomStore.getState().setConnectionStatus('reconnecting')
       const now = Date.now()
       if (now - socketToastAt.current < 8000) return
       socketToastAt.current = now
@@ -189,6 +229,7 @@ export function useRoomSession(roomCode: string) {
     return () => {
       stopped = true
       socket.disconnect()
+      useRoomStore.getState().setConnectionStatus('disconnected')
     }
   }, [applyState, code, t])
 
@@ -200,6 +241,7 @@ export function useRoomSession(roomCode: string) {
     !room?.closed &&
     players.length >= 2 &&
     players.every((player) => player.ready)
+  const actionsBlocked = busy || connectionStatus !== 'connected'
 
   return {
     room,
@@ -212,13 +254,14 @@ export function useRoomSession(roomCode: string) {
     otherPlayers,
     totalMoney,
     canStart,
-    busy,
+    busy: actionsBlocked,
     loading,
     error,
     recipientId,
     setRecipientId,
     bankerTargetId,
     setBankerTargetId,
+    connectionStatus,
     submit,
   }
 }
