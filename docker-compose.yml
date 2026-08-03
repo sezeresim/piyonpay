@@ -1,3 +1,10 @@
+# Full stack — local + same Wi‑Fi sharing
+# Usage:
+#   docker compose up --build
+# UI (phones on LAN): http://YOUR_LAN_IP:5173
+# API (optional direct): http://YOUR_LAN_IP:3000
+# Mongo (host only): localhost:27019
+
 services:
   mongo:
     image: mongo:7
@@ -59,15 +66,35 @@ services:
         condition: service_healthy
       mongo-init:
         condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      # Leave empty so the UI talks to same origin (/api + /socket.io via nginx).
+      # Works on localhost and on phones over Wi‑Fi without rebuilding for a LAN IP.
+      args:
+        VITE_API_BASE: ''
+        VITE_SOCKET_BASE: ''
     ports:
       - '5173:80'
     depends_on:
-      - server
+      server:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   piyonpay-mongo:

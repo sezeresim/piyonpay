@@ -64,15 +64,23 @@ piyonpay/
 
 ## Quick start
 
-### Option A — Docker (full stack)
+### Option A — Docker (full stack + same Wi‑Fi)
+
+One command runs MongoDB, API, and UI. Nginx proxies `/api` and Socket.IO, so phones on your LAN only need the UI port.
 
 ```sh
-docker compose up --build
+pnpm docker:up
+# or: docker compose up --build
 ```
 
-- UI: `http://localhost:5173`
-- API: `http://localhost:3000`
+- UI (this machine): `http://localhost:5173`
+- UI (phone on same Wi‑Fi): `http://YOUR_LAN_IP:5173`
+- API (optional): `http://localhost:3000`
 - Mongo: host port `27019`
+
+Find your LAN IP (macOS): `ipconfig getifaddr en0`
+
+Stop with `pnpm docker:down` (or `Ctrl+C`, then `docker compose down`).
 
 ### Option B — Local development
 
@@ -188,6 +196,8 @@ pnpm fmt               # oxfmt
 pnpm fmt:check
 pnpm test              # unit tests
 pnpm test:e2e          # Playwright
+pnpm docker:up         # full stack (Mongo + API + UI)
+pnpm docker:down
 pnpm --filter @piyonpay/server start:dev
 pnpm --filter @piyonpay/web dev
 ```

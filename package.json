@@ -14,7 +14,10 @@
     "fmt:check": "oxfmt --check",
     "test": "turbo run test --filter=!@piyonpay/e2e",
     "test:e2e": "turbo run test --filter=@piyonpay/e2e",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "devDependencies": {
     "oxfmt": "^0.61.0",

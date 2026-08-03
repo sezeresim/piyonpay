@@ -12,8 +12,11 @@ FROM base AS build
 COPY --from=deps /app /app
 COPY packages/shared packages/shared
 COPY apps/server apps/server
-RUN pnpm --filter @piyonpay/shared build \
-  && pnpm --filter @piyonpay/server build
+# Host incremental caches must not leak into the image build.
+RUN rm -f apps/server/*.tsbuildinfo \
+  && pnpm --filter @piyonpay/shared build \
+  && pnpm --filter @piyonpay/server build \
+  && test -f apps/server/dist/main.js
 
 FROM node:22-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
