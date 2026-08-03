@@ -32,7 +32,7 @@ export class RoomsGateway {
 
   private readonly joinLimit = new WsRateLimit(getEnv().THROTTLE_LIMIT, getEnv().THROTTLE_TTL_MS)
 
-  constructor(private readonly roomsService: RoomsService) {}
+  constructor(private readonly roomsService: RoomsService) { }
 
   @SubscribeMessage(SOCKET_EVENTS.ROOM_JOIN)
   async joinRoom(

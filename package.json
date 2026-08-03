@@ -5,7 +5,7 @@
   "license": "MIT",
   "author": "Sezer Esim",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev",
     "dev:server": "turbo run dev --filter=@piyonpay/server",
     "dev:web": "turbo run dev --filter=@piyonpay/web",
     "build": "turbo run build",

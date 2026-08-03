@@ -35,6 +35,14 @@ export default defineConfig({
       url: `${API_URL}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      env: {
+        ...process.env,
+        MONGODB_URI:
+          process.env.MONGODB_URI ??
+          'mongodb://127.0.0.1:27019/piyonpay?directConnection=true',
+        THROTTLE_LIMIT: process.env.THROTTLE_LIMIT ?? '0',
+        THROTTLE_TRANSFER_LIMIT: process.env.THROTTLE_TRANSFER_LIMIT ?? '0',
+      },
     },
     {
       command: 'pnpm --filter @piyonpay/web dev -- --host localhost --port 5173',
