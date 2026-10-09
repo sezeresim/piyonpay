@@ -14,6 +14,13 @@ function isPrivateIpv4(address) {
   )
 }
 
+// Docker/VM/VPN adapters hold private IPs that phones on the Wi‑Fi can't reach
+function isVirtualInterface(name) {
+  return /^(docker|br-|veth|vethernet|virbr|vmnet|vboxnet|utun|tun|tap|bridge|cni|flannel|tailscale|zt)/i.test(
+    name,
+  )
+}
+
 function listLanIpv4() {
   const nets = os.networkInterfaces()
   const found = []
@@ -29,10 +36,12 @@ function listLanIpv4() {
 
   found.sort((a, b) => {
     const rank = (item) => {
+      if (isVirtualInterface(item.name)) return 5
       if (item.name === 'en0') return 0
-      if (item.name.startsWith('en')) return 1
-      if (isPrivateIpv4(item.address)) return 2
-      return 3
+      if (/^(en|eth|wl|wi-?fi|ethernet)/i.test(item.name)) return 1
+      if (item.address.startsWith('192.168.')) return 2
+      if (isPrivateIpv4(item.address)) return 3
+      return 4
     }
     return rank(a) - rank(b) || a.name.localeCompare(b.name)
   })
